@@ -3,7 +3,7 @@ __author__ = 'Guangfu Shi'
 
 import gimpfu
 import gtk
-import os
+import io
 
 PWF_STATE = 10001
 PWF_STATE_NAME = 100015
@@ -52,6 +52,8 @@ class ComboEntry(gtk.ComboBox):
 
 
 class AnimationState(object):
+    four_directions = ("n", "w", "s", "e")
+
     def __init__(self, name, img_tile_x, img_tile_y, num_frames, directions):
         self._name = name
         self._img_tile_x = img_tile_x
@@ -122,12 +124,17 @@ def remove_state(name):
 
 
 class PluginGUI(object):
-    def __init__(self, params):
+    def __init__(self, params, image, sprite_size):
         # Dialog and Container
         self._dialog = gtk.Dialog(title="Spritesheet Exporter",
                                   parent=None,
                                   flags=0,
-                                  buttons=(gtk.STOCK_OK, gtk.RESPONSE_OK))
+                                  buttons=(gtk.STOCK_OK, gtk.RESPONSE_CLOSE,
+                                           "Export", gtk.RESPONSE_APPLY))
+
+        self._image = image
+        self._sprite_width = sprite_size[0]
+        self._sprite_height = sprite_size[1]
 
         self._vbox = gtk.VBox(False, 12)
         self._vbox.set_border_width(12)
@@ -187,10 +194,25 @@ class PluginGUI(object):
             wid.desc = desc
 
         self._dialog.show()
-        gtk.main()
+        self._dialog.run()
+        #gtk.main()
 
-    def response(self, dlg, id):
-        gtk.main_quit()
+    def response(self, dialog, response_id):
+        if response_id == gtk.RESPONSE_CLOSE:
+            gtk.main_quit()
+        elif response_id == gtk.RESPONSE_APPLY:
+            chooser = gtk.FileChooserDialog(title=None,
+                                            action=gtk.FILE_CHOOSER_ACTION_SAVE,
+                                            buttons=(gtk.STOCK_CANCEL,
+                                                     gtk.RESPONSE_CANCEL,
+                                                     gtk.STOCK_SAVE,
+                                                     gtk.RESPONSE_OK))
+            response = chooser.run()
+            if response == gtk.RESPONSE_OK:
+                file_name = chooser.get_filename()
+                self.do_export(file_name)
+
+            chooser.destroy()
 
     def add_update_state(self, widget, data=None):
         name = self._state_name_entry.get_value()
@@ -205,13 +227,10 @@ class PluginGUI(object):
         gimpfu.pdb.gimp_message(name)
         if name is not None:
             remove_state(name)
-            gimpfu.pdb.gimp_message("haha")
             idx = self._state_cb_entry.get_active()
             self._state_cb_entry.remove_text(idx)
 
-
     def on_state_cb_changed(self, cb):
-        gimpfu.pdb.gimp_message("hehe")
         name = cb.get_active_text()
         if name in states_data:
             #gimpfu.pdb.gimp_message(name)
@@ -222,10 +241,25 @@ class PluginGUI(object):
             self._state_tile_y_entry.set_text(tile_xy[1])
             self._state_num_frames_entry.set_text(num_frames)
 
+    def do_export(self, file_name):
+        with io.open(file_name, 'w+') as file_handle:
+            write_str = "test string".decode("utf-8")
+            file_handle.write(write_str)
+            for state in states_data.values():
+                name = state.name
+                for dir in AnimationState.four_directions:
+                    state_dir = name + dir
+                    for idx in range(state.num_frames):
+                        state_dir.join(str(idx))
+                        gimpfu.pdb.gimp_message(state_dir)
+                        file_handle.write(state_dir)
+
+            file_handle.close()
+
 
 def plugin_main(image, drawable, sprite_width, sprite_height, layer):
 
-    gui = PluginGUI(params)
+    gui = PluginGUI(params, image, (sprite_width, sprite_height))
 
 gimpfu.register(
     "python-fu-spritesheet-exporter",
