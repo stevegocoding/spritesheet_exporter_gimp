@@ -1,9 +1,9 @@
 __author__ = 'Guangfu Shi'
 
-
 import gimpfu
 import gtk
-import io
+import os
+from xml.dom.minidom import Document
 
 PWF_STATE = 10001
 PWF_STATE_NAME = 100015
@@ -73,6 +73,14 @@ class AnimationState(object):
     def tile_xy(self):
         return self._img_tile_x, self._img_tile_y
 
+    @property
+    def tile_x(self):
+        return self._img_tile_x
+
+    @property
+    def tile_y(self):
+        return self._img_tile_y
+
     @tile_xy.setter
     def tile_xy(self, val):
         self._img_tile_x = val.x
@@ -124,7 +132,7 @@ def remove_state(name):
 
 
 class PluginGUI(object):
-    def __init__(self, params, image, sprite_size):
+    def __init__(self, params, image, sprite_width, sprite_height):
         # Dialog and Container
         self._dialog = gtk.Dialog(title="Spritesheet Exporter",
                                   parent=None,
@@ -133,8 +141,8 @@ class PluginGUI(object):
                                            "Export", gtk.RESPONSE_APPLY))
 
         self._image = image
-        self._sprite_width = sprite_size[0]
-        self._sprite_height = sprite_size[1]
+        self._sprite_width = sprite_width
+        self._sprite_height = sprite_height
 
         self._vbox = gtk.VBox(False, 12)
         self._vbox.set_border_width(12)
@@ -242,6 +250,7 @@ class PluginGUI(object):
             self._state_num_frames_entry.set_text(num_frames)
 
     def do_export(self, file_name):
+        """
         with io.open(file_name, 'w+') as file_handle:
             write_str = "test string".decode("utf-8")
             file_handle.write(write_str)
@@ -255,11 +264,56 @@ class PluginGUI(object):
                         file_handle.write(state_dir)
 
             file_handle.close()
+        """
+        xml_indent = "    "
+
+        spritesheet_width = gimpfu.pdb.gimp_image_width(self._image)
+        spritesheet_height = gimpfu.pdb.gimp_image_height(self._image)
+        spritesheet_size = "x".join((str(spritesheet_width), str(spritesheet_height)))
+        spritesheet_name = os.path.splitext(gimpfu.pdb.gimp_image_get_name(self._image))[0]
+
+        doc = Document()
+        root = doc.createElement("Resource")
+        doc.appendChild(root)
+
+        atlas_elem = doc.createElement("imageatlas")
+        atlas_elem.setAttribute("file", spritesheet_name+".png")
+        atlas_elem.setAttribute("size", spritesheet_size)
+        root.appendChild(atlas_elem)
+
+        for state in states_data.values():
+            #(x, y) = state.tile_xy
+            offset_x = int(state.tile_x)
+            offset_y = int(state.tile_y)
+            for dir in AnimationState.four_directions:
+                for idx in range(int(state.num_frames)):
+                    id_str = '%(state_name)s_%(dir)s_%(idx)02d' % \
+                             {"state_name": state.name, "dir": dir, "idx": idx}
+                    offset_str = '%(offset_x)d,%(offset_y)d' % \
+                                 {"offset_x": offset_x, "offset_y": offset_y}
+                    size_str = '%(width)dx%(height)d' % \
+                               {"width": self._sprite_width, "height": self._sprite_height}
+                    image_elem = doc.createElement("image")
+                    image_elem.setAttribute("id", id_str)
+                    image_elem.setAttribute("offset", offset_str)
+                    image_elem.setAttribute("size", size_str)
+                    atlas_elem.appendChild(image_elem)
+
+                    offset_x += self._sprite_width
+
+                offset_x = int(state.tile_x)
+                offset_y += self._sprite_height
+
+        with open(file_name, 'w+') as file_handle:
+            doc.writexml(file_handle, addindent=xml_indent, newl="\n")
+            doc.unlink()
+
+        file_handle.close()
 
 
 def plugin_main(image, drawable, sprite_width, sprite_height, layer):
 
-    gui = PluginGUI(params, image, (sprite_width, sprite_height))
+    gui = PluginGUI(params, image, sprite_width, sprite_height)
 
 gimpfu.register(
     "python-fu-spritesheet-exporter",
