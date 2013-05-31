@@ -60,6 +60,7 @@ class AnimationState(object):
         self._img_tile_y = img_tile_y
         self._num_frames = num_frames
         self._directions = directions
+        self._index = 0
 
     @property
     def name(self):
@@ -102,6 +103,14 @@ class AnimationState(object):
     def num_directions(self, val):
         self._directions = val
 
+    @property
+    def index(self):
+        return self._index
+
+    @index.setter
+    def index(self, val):
+        self._index = val
+
 
 params = [
     (PWF_STATE, "state_cb", "State CB", "New"),
@@ -111,24 +120,32 @@ params = [
     (PWF_NUM_FRAMES, "num_frames", "Frames", 0)
 ]
 
-states_data = {}
+states_data = []
 
 
 def append_state(name="default", tile_x=0, tile_y=0, num_frames=0, directions=4):
-    if name in states_data:
-        state = states_data[name]
+    state = find_state(name)
+    if state is not None:
         state.name = name
         state.tile_xy = (tile_x, tile_y)
         state.num_frame = num_frames
         state.num_directions = directions
     else:
         state = AnimationState(name, tile_x, tile_y, num_frames, directions)
-        states_data[name] = state
+        states_data.append(state)
+
+
+def find_state(name):
+    for state in states_data:
+        if cmp(state.name, name) == 0:
+            return state
+    return None
 
 
 def remove_state(name):
-    if name in states_data:
-        del states_data[name]
+    state = find_state(name)
+    if state is not None:
+        states_data.remove(state)
 
 
 class PluginGUI(object):
@@ -240,31 +257,17 @@ class PluginGUI(object):
 
     def on_state_cb_changed(self, cb):
         name = cb.get_active_text()
-        if name in states_data:
+        state = find_state(name)
+        if state is not None:
             #gimpfu.pdb.gimp_message(name)
-            tile_xy = states_data[name].tile_xy
-            num_frames = states_data[name].num_frames
+            tile_xy = state.tile_xy
+            num_frames = state.num_frames
             self._state_name_entry.set_text(name)
             self._state_tile_x_entry.set_text(tile_xy[0])
             self._state_tile_y_entry.set_text(tile_xy[1])
             self._state_num_frames_entry.set_text(num_frames)
 
     def do_export(self, file_name):
-        """
-        with io.open(file_name, 'w+') as file_handle:
-            write_str = "test string".decode("utf-8")
-            file_handle.write(write_str)
-            for state in states_data.values():
-                name = state.name
-                for dir in AnimationState.four_directions:
-                    state_dir = name + dir
-                    for idx in range(state.num_frames):
-                        state_dir.join(str(idx))
-                        gimpfu.pdb.gimp_message(state_dir)
-                        file_handle.write(state_dir)
-
-            file_handle.close()
-        """
         xml_indent = "    "
 
         spritesheet_width = gimpfu.pdb.gimp_image_width(self._image)
@@ -281,10 +284,13 @@ class PluginGUI(object):
         atlas_elem.setAttribute("size", spritesheet_size)
         root.appendChild(atlas_elem)
 
-        for state in states_data.values():
+        offset_x = 0
+        offset_y = 0
+        state_idx = 0
+        for state in states_data:
             #(x, y) = state.tile_xy
-            offset_x = int(state.tile_x)
-            offset_y = int(state.tile_y)
+            offset_x = 0
+            offset_y = state_idx * len(AnimationState.four_directions) * self._sprite_height
             for dir in AnimationState.four_directions:
                 for idx in range(int(state.num_frames)):
                     id_str = '%(state_name)s_%(dir)s_%(idx)02d' % \
@@ -303,6 +309,8 @@ class PluginGUI(object):
 
                 offset_x = int(state.tile_x)
                 offset_y += self._sprite_height
+
+            state_idx += 1
 
         with open(file_name, 'w+') as file_handle:
             doc.writexml(file_handle, addindent=xml_indent, newl="\n")
