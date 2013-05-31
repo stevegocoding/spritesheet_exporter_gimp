@@ -284,6 +284,7 @@ class PluginGUI(object):
         atlas_elem.setAttribute("size", spritesheet_size)
         root.appendChild(atlas_elem)
 
+        #Export Image Atlas
         offset_x = 0
         offset_y = 0
         state_idx = 0
@@ -309,6 +310,26 @@ class PluginGUI(object):
 
                 offset_x = int(state.tile_x)
                 offset_y += self._sprite_height
+
+            state_idx += 1
+
+        #Export Animation Sequence
+        animation_elem = doc.createElement("animation")
+        root.appendChild(animation_elem)
+        state_idx = 0
+        for state in states_data:
+            for dir in AnimationState.four_directions:
+                seq_name = '%(state_name)s_%(dir)s' % \
+                           {"state_name": state.name, "dir": dir}
+                seq_elem = doc.createElement("sequence")
+                seq_elem.setAttribute("name", seq_name)
+                animation_elem.appendChild(seq_elem)
+                for idx in range(int(state.num_frames)):
+                    id_str = '%(seq_name)s_%(idx)02d' % \
+                             {"seq_name": seq_name, "idx": idx}
+                    frame_elem = doc.createElement("frame")
+                    frame_elem.setAttribute("id", id_str)
+                    seq_elem.appendChild(frame_elem)
 
             state_idx += 1
 
