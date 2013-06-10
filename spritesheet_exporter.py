@@ -291,25 +291,25 @@ class PluginGUI(object):
         for state in states_data:
             #(x, y) = state.tile_xy
             offset_x = 0
-            offset_y = state_idx * len(AnimationState.four_directions) * self._sprite_height
-            for dir in AnimationState.four_directions:
-                for idx in range(int(state.num_frames)):
-                    id_str = '%(state_name)s_%(dir)s_%(idx)02d' % \
-                             {"state_name": state.name, "dir": dir, "idx": idx}
-                    offset_str = '%(offset_x)d,%(offset_y)d' % \
-                                 {"offset_x": offset_x, "offset_y": offset_y}
-                    size_str = '%(width)dx%(height)d' % \
-                               {"width": self._sprite_width, "height": self._sprite_height}
-                    image_elem = doc.createElement("image")
-                    image_elem.setAttribute("id", id_str)
-                    image_elem.setAttribute("offset", offset_str)
-                    image_elem.setAttribute("size", size_str)
-                    atlas_elem.appendChild(image_elem)
+            offset_y = state_idx * self._sprite_height
 
-                    offset_x += self._sprite_width
+            for idx in range(int(state.num_frames)):
+                id_str = '%(state_name)s_%(idx)02d' % \
+                         {"state_name": state.name, "idx": idx}
+                offset_str = '%(offset_x)d,%(offset_y)d' % \
+                             {"offset_x": offset_x, "offset_y": offset_y}
+                size_str = '%(width)dx%(height)d' % \
+                           {"width": self._sprite_width, "height": self._sprite_height}
+                image_elem = doc.createElement("image")
+                image_elem.setAttribute("id", id_str)
+                image_elem.setAttribute("offset", offset_str)
+                image_elem.setAttribute("size", size_str)
+                atlas_elem.appendChild(image_elem)
 
-                offset_x = int(state.tile_x)
-                offset_y += self._sprite_height
+                offset_x += self._sprite_width
+
+            offset_x = int(state.tile_x)
+            offset_y += self._sprite_height
 
             state_idx += 1
 
@@ -318,18 +318,18 @@ class PluginGUI(object):
         root.appendChild(animation_elem)
         state_idx = 0
         for state in states_data:
-            for dir in AnimationState.four_directions:
-                seq_name = '%(state_name)s_%(dir)s' % \
-                           {"state_name": state.name, "dir": dir}
-                seq_elem = doc.createElement("sequence")
-                seq_elem.setAttribute("name", seq_name)
-                animation_elem.appendChild(seq_elem)
-                for idx in range(int(state.num_frames)):
-                    id_str = '%(seq_name)s_%(idx)02d' % \
-                             {"seq_name": seq_name, "idx": idx}
-                    frame_elem = doc.createElement("frame")
-                    frame_elem.setAttribute("id", id_str)
-                    seq_elem.appendChild(frame_elem)
+
+            seq_name = '%(state_name)s' % \
+                       {"state_name": state.name}
+            seq_elem = doc.createElement("sequence")
+            seq_elem.setAttribute("name", seq_name)
+            animation_elem.appendChild(seq_elem)
+            for idx in range(int(state.num_frames)):
+                id_str = '%(seq_name)s_%(idx)02d' % \
+                         {"seq_name": seq_name, "idx": idx}
+                frame_elem = doc.createElement("frame")
+                frame_elem.setAttribute("id", id_str)
+                seq_elem.appendChild(frame_elem)
 
             state_idx += 1
 
